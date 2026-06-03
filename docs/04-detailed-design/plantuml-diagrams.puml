@@ -1,0 +1,500 @@
+' Диаграмма 1 — Use Case приложения
+@startuml
+left to right direction
+actor "Пользователь" as User
+actor "Администратор" as Admin
+rectangle "Ладушки" {
+  usecase "Регистрация" as UC1
+  usecase "Вход" as UC2
+  usecase "Просмотр рецептов" as UC3
+  usecase "Поиск рецепта" as UC4
+  usecase "Добавить рецепт" as UC5
+  usecase "Редактировать рецепт" as UC6
+  usecase "Добавить в покупки" as UC7
+  usecase "Отметить купленное" as UC8
+  usecase "Изменить профиль" as UC9
+  usecase "Одобрить рецепт" as UC10
+  usecase "Просмотреть жалобы" as UC11
+}
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+User --> UC9
+Admin --> UC10
+Admin --> UC11
+Admin --> UC3
+@enduml
+
+' Диаграмма 2 — Domain Model
+@startuml
+class UserProfile {
+  +Long id
+  +String name
+  +String email
+  +Role role
+  +String avatarUri
+}
+class Recipe {
+  +Long id
+  +String title
+  +String description
+  +Int cookingTimeMinutes
+  +Int portions
+  +Difficulty difficulty
+}
+class Ingredient {
+  +String name
+  +String amount
+  +String unit
+}
+class CookingStep {
+  +Int number
+  +String text
+}
+class Nutrition {
+  +Int calories
+  +Int protein
+  +Int fat
+  +Int carbs
+}
+class ShoppingItem {
+  +Long id
+  +String name
+  +Boolean checked
+}
+UserProfile "1" -- "0..*" Recipe : creates
+Recipe "1" *-- "1..*" Ingredient
+Recipe "1" *-- "1..*" CookingStep
+Recipe "1" *-- "1" Nutrition
+UserProfile "1" -- "0..*" ShoppingItem : owns
+@enduml
+
+' Диаграмма 3 — ER-модель базы данных
+@startuml
+entity APP_USER {
+  * id : bigint
+  --
+  name : varchar
+  email : varchar
+  password_hash : varchar
+  role : varchar
+}
+entity RECIPE {
+  * id : bigint
+  --
+  title : varchar
+  description : text
+  category : varchar
+  difficulty : varchar
+  calories : int
+  protein : int
+  fat : int
+  carbs : int
+}
+entity RECIPE_INGREDIENTS {
+  * recipe_id : bigint
+  * name : varchar
+  amount : varchar
+  unit : varchar
+}
+entity RECIPE_STEPS {
+  * recipe_id : bigint
+  * number : int
+  text : text
+}
+entity SHOPPING_LIST_ITEM {
+  * id : bigint
+  --
+  user_id : bigint
+  name : varchar
+  checked : boolean
+}
+APP_USER ||--o{ RECIPE
+RECIPE ||--o{ RECIPE_INGREDIENTS
+RECIPE ||--o{ RECIPE_STEPS
+APP_USER ||--o{ SHOPPING_LIST_ITEM
+@enduml
+
+' Диаграмма 4 — Архитектура PCMEF
+@startuml
+skinparam packageStyle rectangle
+package "Android Client" {
+  package "Presentation" { [Compose Screens] }
+  package "Control" { [RecipeViewModel] }
+  package "Mediator" { [RecipeInteractor] }
+  package "Entity" { [Recipe] [Ingredient] [UserProfile] }
+  package "Foundation" { [Repository] [Retrofit] [Room] }
+}
+package "Spring Boot Server" {
+  package "Control" { [REST Controllers] }
+  package "Mediator" { [Services] }
+  package "Entity" { [JPA Entities] }
+  package "Foundation" { [JPA Repositories] }
+}
+[Compose Screens] --> [RecipeViewModel]
+[RecipeViewModel] --> [RecipeInteractor]
+[RecipeInteractor] --> [Repository]
+[Repository] --> [Retrofit]
+[Repository] --> [Room]
+[Retrofit] --> [REST Controllers]
+[REST Controllers] --> [Services]
+[Services] --> [JPA Repositories]
+@enduml
+
+' Диаграмма 5 — Компонентная диаграмма
+@startuml
+component "Android UI" as UI
+component "ViewModel" as VM
+component "Repository" as Repo
+component "Retrofit API" as API
+database "Room cache" as Room
+component "Spring Controllers" as Ctrl
+component "Spring Services" as Svc
+database "PostgreSQL" as DB
+UI --> VM : UI events
+VM --> Repo : load/save
+Repo --> API : REST
+Repo --> Room : local cache
+API --> Ctrl : JSON
+Ctrl --> Svc : commands
+Svc --> DB : JPA
+@enduml
+
+' Диаграмма 6 — Последовательность входа
+@startuml
+actor User
+participant "AuthScreen" as Screen
+participant "RecipeViewModel" as VM
+participant "RecipeRepository" as Repo
+participant "AuthController" as Auth
+database "UserRepository" as Users
+User -> Screen : ввод email и пароля
+Screen -> VM : login(email, password)
+VM -> Repo : login(request)
+Repo -> Auth : POST /api/auth/login
+Auth -> Users : findByEmail(email)
+Users --> Auth : user
+Auth --> Repo : token + profile
+Repo --> VM : UserProfile
+VM --> Screen : состояние Authorized
+@enduml
+
+' Диаграмма 7 — Добавление и модерация рецепта
+@startuml
+actor User
+actor Admin
+participant "AddRecipeScreen" as Add
+participant "RecipeViewModel" as VM
+participant "RecipeController" as Ctrl
+participant "RecipeService" as Svc
+database "RecipeRepository" as Repo
+User -> Add : заполняет рецепт
+Add -> VM : saveRecipe(recipe)
+VM -> Ctrl : POST /api/recipes
+Ctrl -> Svc : create(recipe, author)
+Svc -> Repo : save(status=PENDING)
+Repo --> Svc : saved recipe
+Svc --> VM : recipe
+Admin -> Ctrl : PATCH /api/admin/recipes/{id}/approve
+Ctrl -> Svc : approve(id)
+Svc -> Repo : update(status=APPROVED)
+@enduml
+
+' Диаграмма 8 — Формирование списка покупок
+@startuml
+actor User
+participant "RecipeDetailScreen" as Detail
+participant "RecipeViewModel" as VM
+participant "ShoppingListController" as Ctrl
+participant "ShoppingListService" as Svc
+database "ShoppingListRepository" as Repo
+User -> Detail : нажимает "Добавить в покупки"
+Detail -> VM : addIngredientsToShopping(recipeId)
+VM -> Ctrl : POST /api/shopping-list/from-recipe/{id}
+Ctrl -> Svc : add ingredients
+loop для каждого ингредиента
+  Svc -> Repo : save(item)
+end
+User -> Detail : отмечает купленное
+Detail -> VM : toggle(itemId)
+VM -> Ctrl : PATCH /api/shopping-list/items/{id}
+Ctrl -> Svc : toggle(itemId)
+@enduml
+
+' Диаграмма 9 — Activity добавления рецепта
+@startuml
+start
+:Открыть экран добавления;
+:Выбрать фото из телефона;
+:Ввести название и категорию;
+:Добавить ингредиенты с граммовкой;
+:Заполнить шаги приготовления;
+:Указать КБЖУ;
+if (данные корректны?) then (да)
+  :Сохранить рецепт;
+  :Показать сообщение об успехе;
+else (нет)
+  :Показать ошибку формы;
+endif
+stop
+@enduml
+
+' Диаграмма 10 — Состояния рецепта
+@startuml
+[*] --> Draft : пользователь вводит данные
+Draft --> Pending : сохранить
+Pending --> Approved : администратор одобрил
+Pending --> Rejected : администратор отклонил
+Approved --> Edited : пользователь изменил
+Edited --> Pending : отправить на проверку
+Approved --> Deleted : удалить
+Rejected --> Draft : исправить
+Deleted --> [*]
+@enduml
+
+' Диаграмма 11 — Deployment диаграмма
+@startuml
+node "Android device" {
+  artifact "Ladushki APK"
+  database "Room"
+  storage "SharedPreferences"
+}
+node "Backend server" {
+  artifact "Spring Boot app"
+}
+database "PostgreSQL"
+cloud "Internet / LAN"
+"Ladushki APK" --> "Internet / LAN" : HTTPS/REST
+"Internet / LAN" --> "Spring Boot app" : JSON API
+"Spring Boot app" --> "PostgreSQL" : JDBC
+"Ladushki APK" --> "Room" : cache
+"Ladushki APK" --> "SharedPreferences" : profile
+@enduml
+
+' Диаграмма 12 — Навигация экранов
+@startuml
+[*] --> AuthScreen
+AuthScreen --> HomeScreen : login/register
+HomeScreen --> CatalogScreen : open catalog
+HomeScreen --> RecipeDetailScreen : recipe of day
+CatalogScreen --> RecipeDetailScreen : select recipe
+RecipeDetailScreen --> AddRecipeScreen : edit
+HomeScreen --> AddRecipeScreen : plus
+HomeScreen --> ShoppingListScreen : cart
+HomeScreen --> ProfileScreen : profile
+ProfileScreen --> SettingsScreen : menu
+ProfileScreen --> AuthScreen : logout
+ProfileScreen --> AdminScreen : admin role
+@enduml
+
+' Диаграмма 13 — Последовательность поиска рецепта
+@startuml
+actor User
+participant "CatalogScreen" as Screen
+participant "RecipeViewModel" as VM
+participant "RecipeInteractor" as Interactor
+participant "RecipeRepository" as Repo
+participant "Room/Retrofit" as Data
+User -> Screen : вводит запрос
+Screen -> VM : onSearchChanged(query)
+VM -> Interactor : search(query)
+Interactor -> Repo : findRecipes(query)
+Repo -> Data : load local/server
+Data --> Repo : recipes
+Repo --> VM : filtered list
+VM --> Screen : update UiState
+@enduml
+
+' Диаграмма 14 — Смена аватара пользователя
+@startuml
+actor User
+participant "ProfileScreen" as Screen
+participant "PhotoPicker" as Picker
+participant "RecipeViewModel" as VM
+participant "ProfileStore" as Store
+User -> Screen : нажимает аватар
+Screen -> Picker : OpenDocument
+Picker --> Screen : avatarUri
+Screen -> VM : updateAvatar(uri)
+VM -> Store : save(profile)
+Store --> VM : saved
+VM --> Screen : новый аватар
+@enduml
+
+' Диаграмма 15 — Сохранение настроек
+@startuml
+actor User
+participant "SettingsScreen" as Screen
+participant "RecipeViewModel" as VM
+participant "SettingsController" as Ctrl
+participant "SettingsService" as Svc
+User -> Screen : меняет переключатели
+Screen -> VM : updateSettings(settings)
+VM -> Ctrl : PUT /api/settings
+Ctrl -> Svc : save(settings)
+Svc --> Ctrl : saved
+Ctrl --> VM : response
+VM --> Screen : success message
+@enduml
+
+' Диаграмма 16 — Activity списка покупок
+@startuml
+start
+:Открыть экран покупок;
+if (список пуст?) then (да)
+  :Показать пустое состояние;
+else (нет)
+  :Показать "Осталось купить";
+  :Показать "Уже куплено";
+endif
+:Пользователь отмечает продукт;
+:Обновить checked;
+if (нужна очистка?) then (да)
+  :Очистить купленное или весь список;
+else (нет)
+  :Сохранить список;
+endif
+stop
+@enduml
+
+' Диаграмма 17 — Локальное хранение Android
+@startuml
+package "Foundation Local" {
+  class AppDatabase
+  class RecipeDao
+  class RecipeCacheEntity
+  class ProfileStore
+}
+package "Domain" {
+  class Recipe
+  class UserProfile
+}
+class CachedRecipeRepository
+CachedRecipeRepository --> RecipeDao
+RecipeDao --> AppDatabase
+RecipeDao --> RecipeCacheEntity
+CachedRecipeRepository --> Recipe
+ProfileStore --> UserProfile
+ProfileStore --> "SharedPreferences"
+@enduml
+
+' Диаграмма 18 — DTO-маппинг
+@startuml
+class RecipeDto
+class IngredientDto
+class Recipe
+class Ingredient
+class DtoMappers {
+  +toEntity(dto): Recipe
+  +toDto(entity): RecipeDto
+}
+RecipeDto *-- IngredientDto
+Recipe *-- Ingredient
+DtoMappers --> RecipeDto
+DtoMappers --> Recipe
+DtoMappers --> IngredientDto
+DtoMappers --> Ingredient
+@enduml
+
+' Диаграмма 19 — Административная модерация
+@startuml
+actor Admin
+participant "AdminScreen" as Screen
+participant "RecipeViewModel" as VM
+participant "AdminController" as Ctrl
+participant "RecipeService" as Svc
+database "RecipeRepository" as Repo
+Admin -> Screen : открывает админ-панель
+Screen -> VM : loadPendingRecipes()
+VM -> Ctrl : GET /api/admin/pending
+Ctrl -> Svc : findPending()
+Svc -> Repo : query status=PENDING
+Repo --> Screen : pending list
+Admin -> Screen : нажимает approve
+Screen -> VM : approveRecipe(id)
+VM -> Ctrl : PATCH /api/admin/recipes/{id}/approve
+Ctrl -> Svc : approve(id)
+@enduml
+
+' Диаграмма 20 — Схема тестирования
+@startuml
+rectangle "Проверка проекта" {
+  rectangle "Сборка Android" as A
+  rectangle "Сборка backend" as B
+  rectangle "UI-сценарии" as C
+  rectangle "API-сценарии" as D
+  rectangle "Проверка данных" as E
+}
+A --> C : APK готов
+B --> D : server ready
+C --> E : профиль, покупки, рецепты
+D --> E : REST responses
+E --> [*] : критерии приемки выполнены
+@enduml
+
+' Диаграмма 21 — Слои Android-клиента
+@startuml
+package "presentation" {
+  class HomeScreen
+  class CatalogScreen
+  class AddRecipeScreen
+  class ShoppingListScreen
+}
+package "control" {
+  class RecipeViewModel
+  class RecipeUiState
+}
+package "mediator" {
+  class RecipeInteractor
+}
+package "entity" {
+  class Recipe
+  class Ingredient
+  class ShoppingItem
+}
+package "foundation" {
+  interface RecipeRepository
+  class CachedRecipeRepository
+  class FakeRecipeRepository
+}
+HomeScreen --> RecipeViewModel
+CatalogScreen --> RecipeViewModel
+AddRecipeScreen --> RecipeViewModel
+RecipeViewModel --> RecipeInteractor
+RecipeInteractor --> RecipeRepository
+RecipeRepository --> Recipe
+@enduml
+
+' Диаграмма 22 — REST-контроллеры сервера
+@startuml
+package "control" {
+  class AuthController
+  class RecipeController
+  class ShoppingListController
+  class AdminController
+  class SettingsController
+}
+package "mediator" {
+  class AuthService
+  class RecipeService
+  class ShoppingListService
+}
+package "foundation" {
+  class UserRepository
+  class RecipeRepository
+  class ShoppingListRepository
+}
+AuthController --> AuthService
+RecipeController --> RecipeService
+AdminController --> RecipeService
+ShoppingListController --> ShoppingListService
+AuthService --> UserRepository
+RecipeService --> RecipeRepository
+ShoppingListService --> ShoppingListRepository
+@enduml
+
