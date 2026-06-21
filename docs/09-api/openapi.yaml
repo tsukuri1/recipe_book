@@ -1,0 +1,547 @@
+openapi: 3.0.3
+info:
+  title: Ladushki Recipe Manager API
+  version: 1.0.0
+  description: REST API мобильного приложения для ведения кулинарных рецептов «Ладушки».
+servers:
+  - url: http://localhost:8082/api
+    description: Docker backend
+  - url: http://localhost:8080/api
+    description: Local backend without Docker
+  - url: http://10.0.2.2:8082/api
+    description: Android emulator Docker backend alias
+  - url: http://10.0.2.2:8080/api
+    description: Android emulator local backend alias
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Users
+  - name: Recipes
+  - name: Favorites
+  - name: ShoppingList
+  - name: Settings
+  - name: Complaints
+  - name: Admin
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация пользователя
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: JWT и профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход в систему
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: JWT и профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Неверные учетные данные
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Получить профиль текущего пользователя
+      responses:
+        '200':
+          description: Профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+  /recipes:
+    get:
+      tags: [Recipes]
+      summary: Получить список рецептов
+      responses:
+        '200':
+          description: Каталог рецептов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Recipe'
+    post:
+      tags: [Recipes]
+      summary: Создать рецепт
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeRequest'
+      responses:
+        '200':
+          description: Созданный рецепт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+  /recipes/{id}:
+    get:
+      tags: [Recipes]
+      summary: Получить рецепт по ID
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Рецепт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+        '404':
+          description: Рецепт не найден
+    put:
+      tags: [Recipes]
+      summary: Обновить рецепт
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeRequest'
+      responses:
+        '200':
+          description: Обновленный рецепт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+    delete:
+      tags: [Recipes]
+      summary: Удалить рецепт
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Рецепт удален
+  /recipes/search:
+    get:
+      tags: [Recipes]
+      summary: Поиск рецептов
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Результаты поиска
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Recipe'
+  /favorites:
+    get:
+      tags: [Favorites]
+      summary: Получить избранные рецепты
+      responses:
+        '200':
+          description: Избранное
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Recipe'
+  /favorites/{recipeId}:
+    post:
+      tags: [Favorites]
+      summary: Добавить рецепт в избранное
+      parameters:
+        - $ref: '#/components/parameters/RecipeId'
+      responses:
+        '204':
+          description: Рецепт добавлен
+    delete:
+      tags: [Favorites]
+      summary: Убрать рецепт из избранного
+      parameters:
+        - $ref: '#/components/parameters/RecipeId'
+      responses:
+        '204':
+          description: Рецепт удален из избранного
+  /shopping-list:
+    get:
+      tags: [ShoppingList]
+      summary: Получить список покупок
+      responses:
+        '200':
+          description: Список покупок
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShoppingListItem'
+    delete:
+      tags: [ShoppingList]
+      summary: Полностью очистить список покупок
+      responses:
+        '204':
+          description: Список очищен
+  /shopping-list/from-recipe/{recipeId}:
+    post:
+      tags: [ShoppingList]
+      summary: Добавить ингредиенты рецепта в покупки
+      parameters:
+        - $ref: '#/components/parameters/RecipeId'
+      responses:
+        '200':
+          description: Обновленный список покупок
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShoppingListItem'
+  /shopping-list/items/{itemId}:
+    patch:
+      tags: [ShoppingList]
+      summary: Отметить продукт купленным
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Обновленная позиция списка покупок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShoppingListItem'
+  /shopping-list/completed:
+    delete:
+      tags: [ShoppingList]
+      summary: Очистить купленные продукты
+      responses:
+        '204':
+          description: Купленные продукты удалены
+  /settings:
+    get:
+      tags: [Settings]
+      summary: Получить настройки приложения
+      responses:
+        '200':
+          description: Настройки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+    put:
+      tags: [Settings]
+      summary: Сохранить настройки приложения
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Settings'
+      responses:
+        '200':
+          description: Сохраненные настройки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+  /admin/stats:
+    get:
+      tags: [Admin]
+      summary: Получить статистику админ-панели
+      responses:
+        '200':
+          description: Административная статистика
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStats'
+  /admin/recipes/pending:
+    get:
+      tags: [Admin]
+      summary: Получить рецепты на проверке
+      responses:
+        '200':
+          description: Рецепты со статусом PENDING
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Recipe'
+  /admin/recipes/{id}/approve:
+    patch:
+      tags: [Admin]
+      summary: Одобрить рецепт
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Рецепт одобрен
+  /admin/recipes/{id}/reject:
+    patch:
+      tags: [Admin]
+      summary: Отклонить рецепт
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Рецепт отклонен
+  /complaints:
+    post:
+      tags: [Complaints]
+      summary: Отправить жалобу на рецепт
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplaintRequest'
+      responses:
+        '200':
+          description: Жалоба создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Complaint'
+  /admin/complaints:
+    get:
+      tags: [Admin]
+      summary: Получить жалобы пользователей
+      responses:
+        '200':
+          description: Список жалоб
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Complaint'
+  /admin/complaints/{id}/review:
+    patch:
+      tags: [Admin]
+      summary: Взять жалобу в работу
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Жалоба взята в работу
+  /admin/complaints/{id}/resolve:
+    patch:
+      tags: [Admin]
+      summary: Закрыть жалобу
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Жалоба закрыта
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    RecipeId:
+      name: recipeId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+  schemas:
+    AuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@ladushki.app
+        password:
+          type: string
+          example: '1234'
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        profile:
+          $ref: '#/components/schemas/UserProfile'
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [USER, ADMIN]
+        avatarUri:
+          type: string
+          nullable: true
+    RecipeRequest:
+      type: object
+      required: [title, description, ingredients]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        difficulty:
+          type: string
+          enum: [EASY, MEDIUM, HARD]
+        cookingTimeMinutes:
+          type: integer
+        portions:
+          type: integer
+        ingredients:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ingredient'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/CookingStep'
+    Recipe:
+      allOf:
+        - $ref: '#/components/schemas/RecipeRequest'
+        - type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            status:
+              type: string
+              enum: [DRAFT, PENDING, APPROVED, REJECTED]
+            authorId:
+              type: integer
+              format: int64
+    Ingredient:
+      type: object
+      properties:
+        name:
+          type: string
+        amount:
+          type: string
+        unit:
+          type: string
+    CookingStep:
+      type: object
+      properties:
+        number:
+          type: integer
+        text:
+          type: string
+    ShoppingListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        checked:
+          type: boolean
+    Settings:
+      type: object
+      properties:
+        darkTheme:
+          type: boolean
+        notificationsEnabled:
+          type: boolean
+    AdminStats:
+      type: object
+      properties:
+        pendingRecipes:
+          type: integer
+        complaints:
+          type: integer
+        users:
+          type: integer
+    Complaint:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        recipeId:
+          type: integer
+          format: int64
+        recipeTitle:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [Новая, В работе, Закрыта]
+    ComplaintRequest:
+      type: object
+      required: [recipeId, recipeTitle, title, description]
+      properties:
+        recipeId:
+          type: integer
+          format: int64
+        recipeTitle:
+          type: string
+        title:
+          type: string
+        description:
+          type: string

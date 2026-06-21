@@ -1,0 +1,245 @@
+{
+  "info": {
+    "name": "Ladushki Recipe Manager API",
+    "description": "Postman collection for the Ladushki Spring Boot REST API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8082/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "recipeId",
+      "value": "1"
+    },
+    {
+      "key": "itemId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"user@ladushki.app\",\"password\":\"1234\",\"name\":\"User\"}"
+            },
+            "url": "{{baseUrl}}/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"admin@ladushki.app\",\"password\":\"1234\"}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "Get recipes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/recipes"
+          }
+        },
+        {
+          "name": "Search recipes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/recipes/search?query=борщ"
+          }
+        },
+        {
+          "name": "Create recipe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Овсяная каша\",\"description\":\"Быстрый завтрак\",\"category\":\"BREAKFAST\",\"difficulty\":\"EASY\",\"cookingTimeMinutes\":15,\"portions\":2,\"ingredients\":[{\"name\":\"Овсянка\",\"amount\":\"80\",\"unit\":\"г\"}],\"steps\":[{\"number\":1,\"text\":\"Сварить кашу.\"}]}"
+            },
+            "url": "{{baseUrl}}/recipes"
+          }
+        },
+        {
+          "name": "Get recipe by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/recipes/{{recipeId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shopping list",
+      "item": [
+        {
+          "name": "Add recipe ingredients",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/shopping-list/from-recipe/{{recipeId}}"
+          }
+        },
+        {
+          "name": "Get shopping list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/shopping-list"
+          }
+        },
+        {
+          "name": "Toggle shopping item",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/shopping-list/items/{{itemId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Complaints",
+      "item": [
+        {
+          "name": "Create complaint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"recipeId\":1,\"recipeTitle\":\"Ягодная овсянка\",\"title\":\"Ошибка в ингредиентах\",\"description\":\"В рецепте не указано точное количество молока.\"}"
+            },
+            "url": "{{baseUrl}}/complaints"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Admin stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/stats"
+          }
+        },
+        {
+          "name": "Pending recipes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/recipes/pending"
+          }
+        },
+        {
+          "name": "Approve recipe",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/recipes/{{recipeId}}/approve"
+          }
+        }
+      ]
+    }
+  ]
+}
